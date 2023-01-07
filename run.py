@@ -1,5 +1,3 @@
-"""Train Knowledge Graph embeddings for link prediction."""
-
 import argparse
 import json
 import logging
@@ -14,17 +12,16 @@ from datasets.kg_dataset import KGDataset
 from models import all_models
 from optimizers.kg_optimizer import KGOptimizer
 from utils.train import get_savedir, avg_both, format_metrics, count_params
-import time
 
 parser = argparse.ArgumentParser(
     description="Knowledge Graph Embedding"
 )
 parser.add_argument(
-    "--dataset", default="go-sdg", choices=[,"FB15K", "WN", "WN18RR", "FB237", "YAGO3-10","go-sdg","go-human","gd"],
+    "--dataset", default="go-sdg", choices=["go-sdg","go-human"],
     help="Knowledge Graph dataset"
 )
 parser.add_argument(
-    "--model", default="RotE", choices=all_models, help="Knowledge Graph embedding model"
+    "--model", default="HEM", choices=all_models, help="Knowledge Graph embedding model"
 )
 parser.add_argument(
     "--regularizer", choices=["N3", "F2"], default="N3", help="Regularizer"
@@ -108,23 +105,26 @@ def train(args):
     dataset_path = os.path.join('data', args.dataset)
     dataset = KGDataset(dataset_path, args.debug)
     args.sizes = dataset.get_shape()
-
     # load data
     logging.info("\t " + str(dataset.get_shape()))
-    train_examples = dataset.get_examples("train")
-    valid_examples = dataset.get_examples("valid")
-    test_examples = dataset.get_examples("test")
-
+    train_examples,ftrain_examples = dataset.get_examples("train")
+    valid_examples,fvalid_examples = dataset.get_examples("valid")
+    test_examples,ftest_examples = dataset.get_examples("test")
+    reltail = torch.cat((ftrain_examples,fvalid_examples,ftest_examples),0)[:, [0,1]]
+    reltail = torch.unique(reltail,dim=0)
+    ent = {tuple(k.numpy()):v for k,v in zip(reltail,range(reltail.shape[0]))}
     filters = dataset.get_filters()
+
+
     # save config
     with open(os.path.join(save_dir, "config.json"), "w") as fjson:
         json.dump(vars(args), fjson)
-
+    args.reltail = ent
     # create model
     model = getattr(models, args.model)(args)
     total = count_params(model)
     logging.info("Total number of parameters {}".format(total))
-    device = "cuda"
+    device = "cpu" #cuda
     model.to(device)
 
     # get optimizer
@@ -139,7 +139,6 @@ def train(args):
     for step in range(args.max_epochs):
 
         # Train step
-        start = time.time()
         model.train()
         train_loss = optimizer.epoch(train_examples)
         logging.info("\t Epoch {} | average train loss: {:.4f}".format(step, train_loss))
@@ -148,8 +147,6 @@ def train(args):
         model.eval()
         valid_loss = optimizer.calculate_valid_loss(valid_examples)
         logging.info("\t Epoch {} | average valid loss: {:.4f}".format(step, valid_loss))
-        end = time.time()
-        print("############time",str(end-start))
 
         if (step + 1) % args.valid == 0:
             valid_metrics = avg_both(*model.compute_metrics(valid_examples, filters))
@@ -162,7 +159,7 @@ def train(args):
                 best_epoch = step
                 logging.info("\t Saving model at epoch {} in {}".format(step, save_dir))
                 torch.save(model.cpu().state_dict(), os.path.join(save_dir, "model.pt"))
-                model.cuda()
+                #model.cuda()
             else:
                 counter += 1
                 if counter == args.patience:
@@ -179,18 +176,18 @@ def train(args):
     else:
         logging.info("\t Loading best model saved at epoch {}".format(best_epoch))
         model.load_state_dict(torch.load(os.path.join(save_dir, "model.pt")))
-    model.cuda()
+    #model.cuda()
     model.eval()
 
     # Validation metrics
     valid_metrics = avg_both(*model.compute_metrics(valid_examples, filters))
     logging.info(format_metrics(valid_metrics, split="valid"))
 
-    # Test metrics total
+    # Test metrics
     test_metrics = avg_both(*model.compute_metrics(test_examples, filters))
     logging.info(format_metrics(test_metrics, split="test"))
 
-    #model.save('ntransE_human100.txt')
+    model.save('go_sdg.txt')
 
 
 if __name__ == "__main__":

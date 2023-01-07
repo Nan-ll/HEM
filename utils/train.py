@@ -1,16 +1,10 @@
-"""Training utils."""
 import datetime
 import os
 
 
 def get_savedir(model, dataset):
-    """Get unique saving directory name."""
     dt = datetime.datetime.now()
     date = dt.strftime("%m_%d")
-    # save_dir = os.path.join(
-    #     os.environ["LOG_DIR"], date, dataset,
-    #     model + dt.strftime('_%H_%M_%S')
-    # )
     save_dir = os.path.join(
         'save', date, dataset,
         model + dt.strftime('_%H_%M_%S')
@@ -20,16 +14,7 @@ def get_savedir(model, dataset):
 
 
 def avg_both(mrs, mrrs, hits):
-    """Aggregate metrics for missing lhs and rhs.
 
-    Args:
-        mrs: Dict[str, float]
-        mrrs: Dict[str, float]
-        hits: Dict[str, torch.FloatTensor]
-
-    Returns:
-        Dict[str, torch.FloatTensor] mapping metric name to averaged score
-    """
     mr = (mrs['lhs'] + mrs['rhs']) / 2.
     mrr = (mrrs['lhs'] + mrrs['rhs']) / 2.
     h = (hits['lhs'] + hits['rhs']) / 2.
@@ -37,7 +22,6 @@ def avg_both(mrs, mrrs, hits):
 
 
 def format_metrics(metrics, split):
-    """Format metrics for logging."""
     result = "\t {} MR: {:.2f} | ".format(split, metrics['MR'])
     result += "MRR: {:.3f} | ".format(metrics['MRR'])
     result += "H@1: {:.3f} | ".format(metrics['hits@[1,3,10]'][0])
@@ -47,7 +31,6 @@ def format_metrics(metrics, split):
 
 
 def write_metrics(writer, step, metrics, split):
-    """Write metrics to tensorboard logs."""
     writer.add_scalar('{}_MR'.format(split), metrics['MR'], global_step=step)
     writer.add_scalar('{}_MRR'.format(split), metrics['MRR'], global_step=step)
     writer.add_scalar('{}_H1'.format(split), metrics['hits@[1,3,10]'][0], global_step=step)
@@ -56,7 +39,6 @@ def write_metrics(writer, step, metrics, split):
 
 
 def count_params(model):
-    """Count total number of trainable parameters in model"""
     total = 0
     for x in model.parameters():
         if x.requires_grad:

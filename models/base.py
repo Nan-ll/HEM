@@ -22,7 +22,7 @@ class KGModel(nn.Module, ABC):
         bt: torch.nn.Embedding with tail entity bias embeddings
     """
 
-    def __init__(self, sizes, rank, dropout, gamma, data_type, bias, init_size):
+    def __init__(self, sizes, rank, dropout, gamma, data_type, bias, init_size,reltail):
         """Initialize KGModel."""
         super(KGModel, self).__init__()
         if data_type == 'double':
@@ -34,6 +34,7 @@ class KGModel(nn.Module, ABC):
         self.dropout = dropout
         self.bias = bias
         self.init_size = init_size
+        self.reltail = reltail
         self.gamma = nn.Parameter(torch.Tensor([gamma]), requires_grad=False)
         self.entity = nn.Embedding(sizes[0], rank)
         self.rel = nn.Embedding(sizes[1], rank)
@@ -43,7 +44,7 @@ class KGModel(nn.Module, ABC):
         self.bt.weight.data = torch.zeros((sizes[0], 1), dtype=self.data_type)
 
     @abstractmethod
-    def get_queries(self, queries):
+    def get_queries(self, queries,mark):
         """Compute embedding and biases of queries.
 
         Args:
@@ -55,7 +56,7 @@ class KGModel(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def get_rhs(self, queries, eval_mode):
+    def get_rhs(self, queries, mark,eval_mode):
         """Get embeddings and biases of target entities.
 
         Args:
@@ -137,9 +138,9 @@ class KGModel(nn.Module, ABC):
             factors: embeddings to regularize
         """
         # get embeddings and similarity scores
-        lhs_e, lhs_biases = self.get_queries(queries)
+        lhs_e, lhs_biases = self.get_queries(queries,'train')
         # queries = F.dropout(queries, self.dropout, training=self.training)
-        rhs_e, rhs_biases = self.get_rhs(queries, eval_mode)
+        rhs_e, rhs_biases = self.get_rhs(queries,'train', eval_mode)
         # candidates = F.dropout(candidates, self.dropout, training=self.training)
         predictions = self.score((lhs_e, lhs_biases), (rhs_e, rhs_biases), eval_mode)
 
@@ -161,12 +162,12 @@ class KGModel(nn.Module, ABC):
         ranks = torch.ones(len(queries))
         with torch.no_grad():
             b_begin = 0
-            candidates = self.get_rhs(queries, eval_mode=True)
+            candidates = self.get_rhs(queries,'test', eval_mode=True)
             while b_begin < len(queries):
-                these_queries = queries[b_begin:b_begin + batch_size].cuda()
+                these_queries = queries[b_begin:b_begin + batch_size]
 
-                q = self.get_queries(these_queries)
-                rhs = self.get_rhs(these_queries, eval_mode=False)
+                q = self.get_queries(these_queries,'test')
+                rhs = self.get_rhs(these_queries,'test', eval_mode=False)
 
                 scores = self.score(q, candidates, eval_mode=True)
                 targets = self.score(q, rhs, eval_mode=False)

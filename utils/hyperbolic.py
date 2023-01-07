@@ -1,5 +1,3 @@
-"""Hyperbolic operations utils functions."""
-
 import torch
 
 MIN_NORM = 1e-15
@@ -34,15 +32,7 @@ def tanh(x):
 # ################# HYP OPS ########################
 
 def expmap0(u, c):
-    """Exponential map taken at the origin of the Poincare ball with curvature c.
 
-    Args:
-        u: torch.Tensor of size B x d with hyperbolic points
-        c: torch.Tensor of size 1 or B x 1 with absolute hyperbolic curvatures
-
-    Returns:
-        torch.Tensor with tangent points.
-    """
     sqrt_c = c ** 0.5
     u_norm = u.norm(dim=-1, p=2, keepdim=True).clamp_min(MIN_NORM)
     gamma_1 = tanh(sqrt_c * u_norm) * u / (sqrt_c * u_norm)
@@ -50,30 +40,14 @@ def expmap0(u, c):
 
 
 def logmap0(y, c):
-    """Logarithmic map taken at the origin of the Poincare ball with curvature c.
 
-    Args:
-        y: torch.Tensor of size B x d with tangent points
-        c: torch.Tensor of size 1 or B x 1 with absolute hyperbolic curvatures
-
-    Returns:
-        torch.Tensor with hyperbolic points.
-    """
     sqrt_c = c ** 0.5
     y_norm = y.norm(dim=-1, p=2, keepdim=True).clamp_min(MIN_NORM)
     return y / y_norm / sqrt_c * artanh(sqrt_c * y_norm)
 
 
 def project(x, c):
-    """Project points to Poincare ball with curvature c.
 
-    Args:
-        x: torch.Tensor of size B x d with hyperbolic points
-        c: torch.Tensor of size 1 or B x 1 with absolute hyperbolic curvatures
-
-    Returns:
-        torch.Tensor with projected hyperbolic points.
-    """
     norm = x.norm(dim=-1, p=2, keepdim=True).clamp_min(MIN_NORM)
     eps = BALL_EPS[x.dtype]
     maxnorm = (1 - eps) / (c ** 0.5)
@@ -83,16 +57,7 @@ def project(x, c):
 
 
 def mobius_add(x, y, c):
-    """Mobius addition of points in the Poincare ball with curvature c.
 
-    Args:
-        x: torch.Tensor of size B x d with hyperbolic points
-        y: torch.Tensor of size B x d with hyperbolic points
-        c: torch.Tensor of size 1 or B x 1 with absolute hyperbolic curvatures
-
-    Returns:
-        Tensor of shape B x d representing the element-wise Mobius addition of x and y.
-    """
     x2 = torch.sum(x * x, dim=-1, keepdim=True)
     y2 = torch.sum(y * y, dim=-1, keepdim=True)
     xy = torch.sum(x * y, dim=-1, keepdim=True)
@@ -104,16 +69,7 @@ def mobius_add(x, y, c):
 # ################# HYP DISTANCES ########################
 
 def hyp_distance(x, y, c, eval_mode=False):
-    """Hyperbolic distance on the Poincare ball with curvature c.
 
-    Args:
-        x: torch.Tensor of size B x d with hyperbolic queries
-        y: torch.Tensor with hyperbolic queries, shape n_entities x d if eval_mode is true else (B x d)
-        c: torch.Tensor of size 1 with absolute hyperbolic curvature
-
-    Returns: torch,Tensor with hyperbolic distances, size B x 1 if eval_mode is False
-            else B x n_entities matrix with all pairs distances
-    """
     sqrt_c = c ** 0.5
     x2 = torch.sum(x * x, dim=-1, keepdim=True)
     if eval_mode:
@@ -132,16 +88,7 @@ def hyp_distance(x, y, c, eval_mode=False):
 
 
 def hyp_distance_multi_c(x, v, c, eval_mode=False):
-    """Hyperbolic distance on Poincare balls with varying curvatures c.
 
-    Args:
-        x: torch.Tensor of size B x d with hyperbolic queries
-        y: torch.Tensor with hyperbolic queries, shape n_entities x d if eval_mode is true else (B x d)
-        c: torch.Tensor of size B x d with absolute hyperbolic curvatures
-
-    Return: torch,Tensor with hyperbolic distances, size B x 1 if eval_mode is False
-            else B x n_entities matrix with all pairs distances
-    """
     sqrt_c = c ** 0.5
     if eval_mode:
         vnorm = torch.norm(v, p=2, dim=-1, keepdim=True).transpose(0, 1)

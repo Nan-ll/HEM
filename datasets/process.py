@@ -1,5 +1,3 @@
-"""Knowledge Graph dataset pre-processing functions."""
-
 import collections
 import os
 import pickle
@@ -8,15 +6,7 @@ import numpy as np
 
 
 def get_idx(path):
-    """Map entities and relations to unique ids.
 
-    Args:
-      path: path to directory with raw dataset files (tab-separated train/valid/test triples)
-
-    Returns:
-      ent2idx: Dictionary mapping raw entities to unique ids
-      rel2idx: Dictionary mapping raw relations to unique ids
-    """
     entities, relations = set(), set()
     for split in ["train", "valid", "test"]:
         with open(os.path.join(path, split), "r") as lines:
@@ -31,16 +21,7 @@ def get_idx(path):
 
 
 def to_np_array(dataset_file, ent2idx, rel2idx):
-    """Map raw dataset file to numpy array with unique ids.
 
-    Args:
-      dataset_file: Path to file containing raw triples in a split
-      ent2idx: Dictionary mapping raw entities to unique ids
-      rel2idx: Dictionary mapping raw relations to unique ids
-
-    Returns:
-      Numpy array of size n_examples x 3 mapping the raw dataset file to ids
-    """
     examples = []
     with open(dataset_file, "r") as lines:
         for line in lines:
@@ -53,16 +34,7 @@ def to_np_array(dataset_file, ent2idx, rel2idx):
 
 
 def get_filters(examples, n_relations):
-    """Create filtering lists for evaluation.
-
-    Args:
-      examples: Numpy array of size n_examples x 3 containing KG triples
-      n_relations: Int indicating the total number of relations in the KG
-
-    Returns:
-      lhs_final: Dictionary mapping queries (entity, relation) to filtered entities for left-hand-side prediction
-      rhs_final: Dictionary mapping queries (entity, relation) to filtered entities for right-hand-side prediction
-    """
+    
     lhs_filters = collections.defaultdict(set)
     rhs_filters = collections.defaultdict(set)
     for lhs, rel, rhs in examples:
@@ -78,15 +50,7 @@ def get_filters(examples, n_relations):
 
 
 def process_dataset(path):
-    """Map entities and relations to ids and saves corresponding pickle arrays.
 
-    Args:
-      path: Path to dataset directory
-
-    Returns:
-      examples: Dictionary mapping splits to with Numpy array containing corresponding KG triples.
-      filters: Dictionary containing filters for lhs and rhs predictions.
-    """
     ent2idx, rel2idx = get_idx(dataset_path)
     examples = {}
     splits = ["train", "valid", "test"]
